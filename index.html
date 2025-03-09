@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciador de Tarefas</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Gerenciador de Tarefas</h1>
+        <div class="task-form">
+            <input type="text" id="taskInput" placeholder="Nome da tarefa">
+            <input type="date" id="taskDate">
+            <button onclick="adicionarTarefa()">Adicionar</button>
+        </div>
+
+        <div class="task-board">
+            <div class="task-column" id="todo" ondrop="soltar(event)" ondragover="permitirSoltar(event)">
+                <h2>A Fazer</h2>
+                <div class="task-list" id="todo-list"></div>
+            </div>
+            <div class="task-column" id="inProgress" ondrop="soltar(event)" ondragover="permitirSoltar(event)">
+                <h2>Em Andamento</h2>
+                <div class="task-list" id="inProgress-list"></div>
+            </div>
+            <div class="task-column" id="done" ondrop="soltar(event)" ondragover="permitirSoltar(event)">
+                <h2>Concluído</h2>
+                <div class="task-list" id="done-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
