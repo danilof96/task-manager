@@ -7,8 +7,8 @@ app = Flask(__name__)
 CORS(app)
 
 DB_NOME = "task_manager"
-DB_USUARIO = "danilo_admin"
-DB_SENHA = "asenhae1102"
+DB_USUARIO = "faculdade_login"
+DB_SENHA = "abc123"
 DB_SERVIDOR = "localhost"
 DB_PORTA = "3306"
 
