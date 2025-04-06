@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify
 import psycopg2
 from flask_cors import CORS
-from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
@@ -25,7 +24,7 @@ def obter_conexao_bd():
 def inicio():
     return jsonify({"mensagem": "API funcionando!"})
 
-@app.route("/tasks", methods=["GET"])
+@app.route("/task-manager", methods=["GET"])
 def listar_tarefas():
     conexao = obter_conexao_bd()
     cursor = conexao.cursor()
@@ -46,7 +45,7 @@ def listar_tarefas():
         tarefa_dict = {
             "id": t[0],
             "nome": t[1],
-            "data": t[2],  # Já formatada pelo SQL
+            "data": t[2],
             "status": t[3]
         }
         lista_tarefas.append(tarefa_dict)
@@ -55,7 +54,7 @@ def listar_tarefas():
     conexao.close()
     return jsonify(lista_tarefas)
 
-@app.route("/tasks", methods=["POST"])
+@app.route("/task-manager", methods=["POST"])
 def adicionar_tarefa():
     dados = request.json
     nome = dados["nome"]
@@ -87,7 +86,7 @@ def adicionar_tarefa():
         "status": status
     })
 
-@app.route("/tasks/<int:task_id>", methods=["DELETE"])
+@app.route("/task-manager/<int:task_id>", methods=["DELETE"])
 def excluir_tarefa(task_id):
     conexao = obter_conexao_bd()
     cursor = conexao.cursor()
@@ -98,7 +97,60 @@ def excluir_tarefa(task_id):
 
     return jsonify({"mensagem": "Tarefa excluída!"})
 
-@app.route("/tasks/<int:task_id>", methods=["PATCH"])
+@app.route("/task-manager/<int:task_id>", methods=["PUT"])
+def editar_tarefa(task_id):
+    dados = request.json
+    nome = dados.get("nome")
+    data_tarefa = dados.get("data")
+    status = dados.get("status")
+    
+    atualizacoes = []
+    parametros = []
+    
+    if nome is not None:
+        atualizacoes.append("nome = %s")
+        parametros.append(nome)
+        
+    if data_tarefa is not None:
+        atualizacoes.append("data = %s")
+        parametros.append(data_tarefa)
+        
+    if status is not None:
+        if status not in ["todo", "inProgress", "done"]:
+            return jsonify({"erro": "Status inválido"}), 400
+        atualizacoes.append("status = %s")
+        parametros.append(status)
+    
+    if not atualizacoes:
+        return jsonify({"erro": "Nenhum campo para atualizar fornecido"}), 400
+    
+    sql = f"UPDATE tarefas SET {', '.join(atualizacoes)} WHERE id = %s RETURNING id, nome, TO_CHAR(data, 'DD/MM/YYYY') as data_formatada, status"
+    parametros.append(task_id)
+    
+    conexao = obter_conexao_bd()
+    cursor = conexao.cursor()
+    cursor.execute(sql, parametros)
+    
+    resultado = cursor.fetchone()
+    if not resultado:
+        conexao.close()
+        return jsonify({"erro": "Tarefa não encontrada"}), 404
+    
+    conexao.commit()
+    
+    tarefa_atualizada = {
+        "id": resultado[0],
+        "nome": resultado[1],
+        "data": resultado[2],
+        "status": resultado[3]
+    }
+    
+    cursor.close()
+    conexao.close()
+    
+    return jsonify(tarefa_atualizada)
+
+@app.route("/task-manager/<int:task_id>", methods=["PATCH"])
 def atualizar_status_tarefa(task_id):
     dados = request.json
     novo_status = dados.get("status")

@@ -9,6 +9,31 @@
 <body>
     <div class="container">
         <h1>Gerenciador de Tarefas</h1>
+        
+        <!-- Controles de tema e cores -->
+        <div class="controls">
+            <div class="theme-switch">
+                <label class="switch">
+                    <input type="checkbox" id="darkModeToggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <div class="color-picker">
+                <span class="color-label">A Fazer:</span>
+                <input type="color" id="todoColor1" value="#ff7b7b">
+                <input type="color" id="todoColor2" value="#ff5252">
+                
+                <span class="color-label">Em Andamento:</span>
+                <input type="color" id="inProgressColor1" value="#ffdd57">
+                <input type="color" id="inProgressColor2" value="#ffcc00">
+                
+                <span class="color-label">Concluído:</span>
+                <input type="color" id="doneColor1" value="#66d37e">
+                <input type="color" id="doneColor2" value="#28a745">
+            </div>
+        </div>
+        
         <div class="task-form">
             <input type="text" id="taskInput" placeholder="Nome da tarefa">
             <input type="date" id="taskDate">
