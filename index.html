@@ -34,9 +34,21 @@
             </div>
         </div>
         
+
         <div class="task-form">
             <input type="text" id="taskInput" placeholder="Nome da tarefa">
             <input type="date" id="taskDate">
+            <div class="category-selector">
+                <div class="category-option" data-category="casa" onclick="selecionarCategoria(this)">
+                    <span>🏠</span>
+                </div>
+                <div class="category-option" data-category="trabalho" onclick="selecionarCategoria(this)">
+                    <span>💼</span>
+                </div>
+                <div class="category-option" data-category="estudo" onclick="selecionarCategoria(this)">
+                    <span>📚</span>
+                </div>
+            </div>
             <button onclick="adicionarTarefa()">Adicionar</button>
         </div>
 

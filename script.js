@@ -1,3 +1,5 @@
+let categoriaSelecionada = "";
+
 document.addEventListener("DOMContentLoaded", function() 
 {
     carregarConfiguracoes();
@@ -183,7 +185,7 @@ async function carregarTarefas()
                     } 
                     else 
                     {
-                        let elementoTarefa = criarElementoTarefa(tarefa.id, tarefa.nome, dataFormatada);
+                        let elementoTarefa = criarElementoTarefa(tarefa.id, tarefa.nome, dataFormatada, tarefa.categoria);
                         elementoTarefa.classList.add('new-task');
                         coluna.appendChild(elementoTarefa);
                         setTimeout(() => 
@@ -253,7 +255,8 @@ async function adicionarTarefa()
             body: JSON.stringify({
                 nome: entradaTarefa.value,
                 data: dataTarefa.value,
-                status: "todo"
+                status: "todo",
+                categoria: categoriaSelecionada || "casa"
             })
         });
 
@@ -264,7 +267,8 @@ async function adicionarTarefa()
             const elementoTarefa = criarElementoTarefa(
                 novaTarefa.id, 
                 novaTarefa.nome, 
-                novaTarefa.data || "Sem data"
+                novaTarefa.data || "Sem data",
+                novaTarefa.categoria
             );
     
             elementoTarefa.classList.add('new-task');
@@ -285,9 +289,14 @@ async function adicionarTarefa()
 
     entradaTarefa.value = "";
     dataTarefa.value = "";
+    document.querySelectorAll('.category-option').forEach(option => 
+    {
+        option.classList.remove('selected');
+    });
+    categoriaSelecionada = "";
 }
 
-function criarElementoTarefa(id, nome, data) 
+function criarElementoTarefa(id, nome, data, categoria = "") 
 {
     let div = document.createElement("div");
     div.classList.add("task");
@@ -296,9 +305,25 @@ function criarElementoTarefa(id, nome, data)
     div.dataset.id = id;
     div.dataset.nome = nome;
     div.dataset.data = data;
+    div.dataset.categoria = categoria;
+    
+    let iconeCategoria = "";
+    switch(categoria) {
+        case "casa":
+            iconeCategoria = "🏠";
+            break;
+        case "trabalho":
+            iconeCategoria = "💼";
+            break;
+        case "estudo":
+            iconeCategoria = "📚";
+            break;
+        default:
+            iconeCategoria = "";
+    }
     
     div.innerHTML = `
-        <p><strong>${nome}</strong></p>
+        <p>${iconeCategoria ? `<span class="task-category-icon">${iconeCategoria}</span>` : ''}<strong>${nome}</strong></p>
         <p>${data}</p>
         <div class="task-actions">
             <button onclick="editarTarefa(this)">✏️</button>
@@ -370,6 +395,17 @@ function arrastarSaindo(evento)
     {
         list.classList.remove('drop-target');
     });
+}
+
+function selecionarCategoria(elemento) 
+{
+    document.querySelectorAll('.category-option').forEach(option => 
+    {
+        option.classList.remove('selected');
+    });
+    
+    elemento.classList.add('selected');
+    categoriaSelecionada = elemento.dataset.category;
 }
 
 async function soltar(evento) 
@@ -448,6 +484,7 @@ function editarTarefa(botao)
     let idTarefa = divTarefa.dataset.id;
     let nomeTarefa = divTarefa.dataset.nome;
     let dataTarefa = divTarefa.dataset.data;
+    let categoriaTarefa = divTarefa.dataset.categoria || "";
     
     divTarefa.dataset.originalContent = divTarefa.innerHTML;
     
@@ -457,11 +494,30 @@ function editarTarefa(botao)
         dataISO = `${ano}-${mes}-${dia}`;
     }
     
+    let opcoesCategoria = `
+        <div class="category-selector" style="margin: 8px 0">
+            <div class="category-option ${categoriaTarefa === 'casa' ? 'selected' : ''}" 
+                 data-category="casa" onclick="selecionarCategoriaEdicao(this, ${idTarefa})">
+                <span>🏠</span>
+            </div>
+            <div class="category-option ${categoriaTarefa === 'trabalho' ? 'selected' : ''}" 
+                 data-category="trabalho" onclick="selecionarCategoriaEdicao(this, ${idTarefa})">
+                <span>💼</span>
+            </div>
+            <div class="category-option ${categoriaTarefa === 'estudo' ? 'selected' : ''}" 
+                 data-category="estudo" onclick="selecionarCategoriaEdicao(this, ${idTarefa})">
+                <span>📚</span>
+            </div>
+        </div>
+    `;
+    
     divTarefa.classList.add('editing');
     
     divTarefa.innerHTML = `
         <input type="text" class="edit-nome" value="${nomeTarefa}" placeholder="Nome da tarefa">
         <input type="date" class="edit-data" value="${dataISO}">
+        ${opcoesCategoria}
+        <input type="hidden" class="edit-categoria" value="${categoriaTarefa}">
         <div class="edit-actions">
             <button onclick="salvarEdicao(${idTarefa})">✅</button>
             <button onclick="cancelarEdicao(${idTarefa})">❌</button>
@@ -469,8 +525,18 @@ function editarTarefa(botao)
     `;
     
     divTarefa.draggable = false;
-    
     divTarefa.querySelector('.edit-nome').focus();
+}
+
+function selecionarCategoriaEdicao(elemento, idTarefa) {
+    const divTarefa = document.querySelector(`.task[data-id="${idTarefa}"]`);
+    
+    divTarefa.querySelectorAll('.category-option').forEach(option => {
+        option.classList.remove('selected');
+    });
+    
+    elemento.classList.add('selected');
+    divTarefa.querySelector('.edit-categoria').value = elemento.dataset.category;
 }
 
 async function salvarEdicao(idTarefa) 
@@ -479,6 +545,7 @@ async function salvarEdicao(idTarefa)
     
     let novoNome = divTarefa.querySelector('.edit-nome').value.trim();
     let novaData = divTarefa.querySelector('.edit-data').value;
+    let novaCategoria = divTarefa.querySelector('.edit-categoria').value;
     
     if (novoNome === "") 
     {
@@ -495,7 +562,8 @@ async function salvarEdicao(idTarefa)
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 nome: novoNome,
-                data: novaData || null
+                data: novaData || null,
+                categoria: novaCategoria
             })
         });
         
@@ -507,10 +575,26 @@ async function salvarEdicao(idTarefa)
             divTarefa.draggable = true;
             divTarefa.dataset.nome = tarefaAtualizada.nome;
             divTarefa.dataset.data = tarefaAtualizada.data;
+            divTarefa.dataset.categoria = tarefaAtualizada.categoria || "";
+            
+            let iconeCategoria = "";
+            switch(tarefaAtualizada.categoria) {
+                case "casa":
+                    iconeCategoria = "🏠";
+                    break;
+                case "trabalho":
+                    iconeCategoria = "💼";
+                    break;
+                case "estudo":
+                    iconeCategoria = "📚";
+                    break;
+                default:
+                    iconeCategoria = "";
+            }
             
             divTarefa.innerHTML = 
             `
-                <p><strong>${tarefaAtualizada.nome}</strong></p>
+                <p>${iconeCategoria ? `<span class="task-category-icon">${iconeCategoria}</span>` : ''}<strong>${tarefaAtualizada.nome}</strong></p>
                 <p>${tarefaAtualizada.data}</p>
                 <div class="task-actions">
                     <button onclick="editarTarefa(this)">✏️</button>

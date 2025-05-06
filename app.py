@@ -34,7 +34,8 @@ def listar_tarefas():
             id, 
             nome, 
             TO_CHAR(data, 'DD/MM/YYYY') as data_formatada, 
-            status 
+            status,
+            categoria
         FROM tarefas
     """)
     
@@ -46,7 +47,8 @@ def listar_tarefas():
             "id": t[0],
             "nome": t[1],
             "data": t[2],
-            "status": t[3]
+            "status": t[3],
+            "categoria": t[4] if len(t) > 4 else ""
         }
         lista_tarefas.append(tarefa_dict)
     
@@ -60,12 +62,13 @@ def adicionar_tarefa():
     nome = dados["nome"]
     data_tarefa = dados["data"]
     status = dados.get("status", "todo")
+    categoria = dados.get("categoria", "")
 
     conexao = obter_conexao_bd()
     cursor = conexao.cursor()
     cursor.execute(
-        "INSERT INTO tarefas (nome, data, status) VALUES (%s, %s, %s) RETURNING id",
-        (nome, data_tarefa, status)
+        "INSERT INTO tarefas (nome, data, status, categoria) VALUES (%s, %s, %s, %s) RETURNING id",
+        (nome, data_tarefa, status, categoria)
     )
     id_tarefa = cursor.fetchone()[0]
     conexao.commit()
@@ -83,7 +86,8 @@ def adicionar_tarefa():
         "id": id_tarefa, 
         "nome": nome, 
         "data": data_formatada,
-        "status": status
+        "status": status,
+        "categoria": categoria
     })
 
 @app.route("/task-manager/<int:task_id>", methods=["DELETE"])
@@ -103,6 +107,7 @@ def editar_tarefa(task_id):
     nome = dados.get("nome")
     data_tarefa = dados.get("data")
     status = dados.get("status")
+    categoria = dados.get("categoria")
     
     atualizacoes = []
     parametros = []
@@ -121,10 +126,14 @@ def editar_tarefa(task_id):
         atualizacoes.append("status = %s")
         parametros.append(status)
     
+    if categoria is not None:
+        atualizacoes.append("categoria = %s")
+        parametros.append(categoria)
+    
     if not atualizacoes:
         return jsonify({"erro": "Nenhum campo para atualizar fornecido"}), 400
     
-    sql = f"UPDATE tarefas SET {', '.join(atualizacoes)} WHERE id = %s RETURNING id, nome, TO_CHAR(data, 'DD/MM/YYYY') as data_formatada, status"
+    sql = f"UPDATE tarefas SET {', '.join(atualizacoes)} WHERE id = %s RETURNING id, nome, TO_CHAR(data, 'DD/MM/YYYY') as data_formatada, status, categoria"
     parametros.append(task_id)
     
     conexao = obter_conexao_bd()
@@ -142,7 +151,8 @@ def editar_tarefa(task_id):
         "id": resultado[0],
         "nome": resultado[1],
         "data": resultado[2],
-        "status": resultado[3]
+        "status": resultado[3],
+        "categoria": resultado[4] if len(resultado) > 4 else ""
     }
     
     cursor.close()
