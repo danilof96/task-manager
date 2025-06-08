@@ -1,33 +1,84 @@
 let categoriaSelecionada = "";
 
-document.addEventListener("DOMContentLoaded", function() 
-{
-    carregarConfiguracoes();
-    configurarControles();
-    carregarTarefas();
+document.addEventListener("DOMContentLoaded", async function() {
+    const sessionValid = await verificarSessao();
+    if (sessionValid !== false) {
+        carregarConfiguracoes();
+        configurarControles();
+        carregarTarefas();
+    }
 });
 
-function configurarControles() 
-{
+async function verificarSessao() {
+    try {
+        const sessionResponse = await fetch("/api/session-status", {
+            credentials: 'same-origin'
+        });
+        if (sessionResponse.ok) {
+            const sessionData = await sessionResponse.json();
+            
+            if (!sessionData.authenticated) {
+                window.location.href = "/login";
+                return false;
+            }
+            
+            const taskResponse = await fetch("/task-manager", {
+                credentials: 'same-origin'
+            });
+            if (taskResponse.status === 401) {
+                window.location.href = "/login";
+                return false;
+            }
+            
+            if (!taskResponse.ok) {
+                return false;
+            }
+            
+            return true;
+        }
+        
+        return false;
+        
+    } catch (error) {
+        return false;
+    }
+}
+
+async function logout() {
+    try {
+        const response = await fetch("/api/logout", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            credentials: 'same-origin'
+        });
+        
+        if (response.ok) {
+            window.location.href = "/login";
+        }
+    } catch (error) {
+        window.location.href = "/login";
+    }
+}
+
+function configurarControles() {
     const darkModeToggle = document.getElementById("darkModeToggle");
-    darkModeToggle.addEventListener("change", function() 
-    {
+    darkModeToggle.addEventListener("change", function() {
         document.body.classList.toggle("dark-mode");
         salvarConfiguracoes();
     });
+    
     const seletoresCores = document.querySelectorAll(".color-picker input[type='color']");
-    seletoresCores.forEach(seletor => 
-    {
-        seletor.addEventListener("input", function() 
-        {
+    seletoresCores.forEach(seletor => {
+        seletor.addEventListener("input", function() {
             atualizarCoresColunas();
             salvarConfiguracoes();
         });
     });
 }
 
-function carregarConfiguracoes() 
-{
+function carregarConfiguracoes() {
     const configs = JSON.parse(localStorage.getItem("taskManagerConfig")) || {
         darkMode: false,
         coresColunas: {
@@ -39,27 +90,25 @@ function carregarConfiguracoes()
             doneColor2: "#28a745"
         }
     };
-    if (configs.darkMode) 
-    {
+    
+    if (configs.darkMode) {
         document.body.classList.add("dark-mode");
         document.getElementById("darkModeToggle").checked = true;
     }
-    Object.keys(configs.coresColunas).forEach(key => 
-    {
+    
+    Object.keys(configs.coresColunas).forEach(key => {
         const element = document.getElementById(key);
-        if (element) 
-        {
+        if (element) {
             element.value = configs.coresColunas[key];
         }
     });
+    
     atualizarCoresColunas();
 }
 
-function salvarConfiguracoes() 
-{
+function salvarConfiguracoes() {
     const darkMode = document.body.classList.contains("dark-mode");
-    const coresColunas = 
-    {
+    const coresColunas = {
         todoColor1: document.getElementById("todoColor1").value,
         todoColor2: document.getElementById("todoColor2").value,
         inProgressColor1: document.getElementById("inProgressColor1").value,
@@ -67,26 +116,28 @@ function salvarConfiguracoes()
         doneColor1: document.getElementById("doneColor1").value,
         doneColor2: document.getElementById("doneColor2").value
     };
+    
     localStorage.setItem("taskManagerConfig", JSON.stringify({
         darkMode,
         coresColunas
     }));
 }
 
-function atualizarCoresColunas() 
-{
+function atualizarCoresColunas() {
     const todoColor1 = document.getElementById("todoColor1").value;
     const todoColor2 = document.getElementById("todoColor2").value;
     const inProgressColor1 = document.getElementById("inProgressColor1").value;
     const inProgressColor2 = document.getElementById("inProgressColor2").value;
     const doneColor1 = document.getElementById("doneColor1").value;
     const doneColor2 = document.getElementById("doneColor2").value;
+    
     document.documentElement.style.setProperty('--custom-todo-color1', todoColor1);
     document.documentElement.style.setProperty('--custom-todo-color2', todoColor2);
     document.documentElement.style.setProperty('--custom-inprogress-color1', inProgressColor1);
     document.documentElement.style.setProperty('--custom-inprogress-color2', inProgressColor2);
     document.documentElement.style.setProperty('--custom-done-color1', doneColor1);
     document.documentElement.style.setProperty('--custom-done-color2', doneColor2);
+    
     document.documentElement.style.setProperty(
         '--todo-bg', 
         `linear-gradient(to right, ${todoColor1}, ${todoColor2})`
@@ -101,28 +152,38 @@ function atualizarCoresColunas()
     );
 }
 
-async function carregarTarefas() 
-{
+async function carregarTarefas() {
     try {
-        const resposta = await fetch("http://127.0.0.1:5000/task-manager");
+        const resposta = await fetch("/task-manager", {
+            credentials: 'same-origin'
+        });
+        
+        if (!resposta.ok) {
+            if (resposta.status === 401) {
+                window.location.href = "/login";
+                return;
+            }
+            throw new Error(`HTTP error! status: ${resposta.status}`);
+        }
+        
         const tarefas = await resposta.json();
         const todoList = document.getElementById("todo-list");
         const inProgressList = document.getElementById("inProgress-list");
         const doneList = document.getElementById("done-list");
-        const existingIds = 
-        {
+        
+        const existingIds = {
             "todo-list": Array.from(todoList.querySelectorAll('.task')).map(el => el.dataset.id),
             "inProgress-list": Array.from(inProgressList.querySelectorAll('.task')).map(el => el.dataset.id),
             "done-list": Array.from(doneList.querySelectorAll('.task')).map(el => el.dataset.id)
         };
-        const novoIds = 
-        {
+        
+        const novoIds = {
             "todo-list": [],
             "inProgress-list": [],
             "done-list": []
         };
-        tarefas.forEach(tarefa => 
-        {
+        
+        tarefas.forEach(tarefa => {
             let colunaId = "";
             
             if (tarefa.status === "todo") colunaId = "todo-list";
@@ -130,70 +191,54 @@ async function carregarTarefas()
             else if (tarefa.status === "done") colunaId = "done-list";
             
             let coluna = document.getElementById(colunaId);
-            if (coluna) 
-            {
+            if (coluna) {
                 const dataFormatada = tarefa.data || "Sem data";
                 novoIds[colunaId].push(tarefa.id.toString());
                 const tarefaExistente = coluna.querySelector(`.task[data-id="${tarefa.id}"]`);
                 
-                if (tarefaExistente) 
-                {
-                    if (tarefaExistente.dataset.nome !== tarefa.nome || tarefaExistente.dataset.data !== dataFormatada) 
-                    {
+                if (tarefaExistente) {
+                    if (tarefaExistente.dataset.nome !== tarefa.nome || tarefaExistente.dataset.data !== dataFormatada) {
                         tarefaExistente.dataset.nome = tarefa.nome;
                         tarefaExistente.dataset.data = dataFormatada;
                         tarefaExistente.querySelector('strong').textContent = tarefa.nome;
                         tarefaExistente.querySelectorAll('p')[1].textContent = dataFormatada;
                     }
-                } 
-                else 
-                {
+                } else {
                     let tarefaMovida = null;
                     const colunas = ["todo-list", "inProgress-list", "done-list"];               
-                    for (const col of colunas) 
-                    {
-                        if (col !== colunaId) 
-                        {
+                    for (const col of colunas) {
+                        if (col !== colunaId) {
                             tarefaMovida = document.getElementById(col).querySelector(`.task[data-id="${tarefa.id}"]`);
                             if (tarefaMovida) break;
                         }
                     }
                     
-                    if (tarefaMovida) 
-                    {
+                    if (tarefaMovida) {
                         tarefaMovida.classList.add('moving');
-                        if (tarefaMovida.dataset.nome !== tarefa.nome || tarefaMovida.dataset.data !== dataFormatada) 
-                        {
+                        if (tarefaMovida.dataset.nome !== tarefa.nome || tarefaMovida.dataset.data !== dataFormatada) {
                             tarefaMovida.dataset.nome = tarefa.nome;
                             tarefaMovida.dataset.data = dataFormatada;
                             tarefaMovida.querySelector('strong').textContent = tarefa.nome;
                             tarefaMovida.querySelectorAll('p')[1].textContent = dataFormatada;
                         }
-                        setTimeout(() => 
-                        {
+                        setTimeout(() => {
                             coluna.appendChild(tarefaMovida);
-                            setTimeout(() => 
-                            {
+                            setTimeout(() => {
                                 tarefaMovida.classList.remove('moving');
                                 tarefaMovida.classList.add('arrived');
-                                setTimeout(() => 
-                                {
+                                setTimeout(() => {
                                     tarefaMovida.classList.remove('arrived');
                                 }, 500);
                             }, 10);
                         }, 100);
-                    } 
-                    else 
-                    {
+                    } else {
                         let elementoTarefa = criarElementoTarefa(tarefa.id, tarefa.nome, dataFormatada, tarefa.categoria);
                         elementoTarefa.classList.add('new-task');
                         coluna.appendChild(elementoTarefa);
-                        setTimeout(() => 
-                        {
+                        setTimeout(() => {
                             elementoTarefa.classList.add('show');
                         }, 10);
-                        setTimeout(() => 
-                        {
+                        setTimeout(() => {
                             elementoTarefa.classList.remove('new-task', 'show');
                         }, 800);
                     }
@@ -201,19 +246,14 @@ async function carregarTarefas()
             }
         });
 
-        Object.keys(existingIds).forEach(colId => 
-        {
+        Object.keys(existingIds).forEach(colId => {
             const coluna = document.getElementById(colId);
-            existingIds[colId].forEach(id => 
-            {
-                if (!novoIds[colId].includes(id)) 
-                {
+            existingIds[colId].forEach(id => {
+                if (!novoIds[colId].includes(id)) {
                     const tarefa = coluna.querySelector(`.task[data-id="${id}"]`);
-                    if (tarefa) 
-                    {
+                    if (tarefa) {
                         tarefa.classList.add('removing');
-                        setTimeout(() => 
-                        {
+                        setTimeout(() => {
                             tarefa.remove();
                         }, 300);
                     }
@@ -221,37 +261,34 @@ async function carregarTarefas()
             });
         });
         
-    } catch (erro) 
-    {
+    } catch (erro) {
         console.error("Erro ao carregar tarefas:", erro);
     }
 }
 
-function formatarData(dataString) 
-{
-    if (dataString && dataString.includes("-")) 
-    {
+function formatarData(dataString) {
+    if (dataString && dataString.includes("-")) {
         const [ano, mes, dia] = dataString.split("T")[0].split("-");
         return `${dia}/${mes}/${ano}`;
     }
     return dataString || "Sem data";
 }
 
-async function adicionarTarefa() 
-{
+async function adicionarTarefa() {
     let entradaTarefa = document.getElementById("taskInput");
     let dataTarefa = document.getElementById("taskDate");
 
     if (entradaTarefa.value.trim() === "") return;
+    
     const botaoAdicionar = document.querySelector('.task-form button');
     botaoAdicionar.classList.add('clicked');
     setTimeout(() => botaoAdicionar.classList.remove('clicked'), 300);
     
     try {
-        const resposta = await fetch("http://127.0.0.1:5000/task-manager", 
-        {
+        const resposta = await fetch("/task-manager", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
+            credentials: 'same-origin',
             body: JSON.stringify({
                 nome: entradaTarefa.value,
                 data: dataTarefa.value,
@@ -260,8 +297,7 @@ async function adicionarTarefa()
             })
         });
 
-        if (resposta.ok) 
-        {
+        if (resposta.ok) {
             const novaTarefa = await resposta.json();
             const todoList = document.getElementById("todo-list");
             const elementoTarefa = criarElementoTarefa(
@@ -273,31 +309,28 @@ async function adicionarTarefa()
     
             elementoTarefa.classList.add('new-task');
             todoList.prepend(elementoTarefa);
-            setTimeout(() => 
-                {
+            setTimeout(() => {
                 elementoTarefa.classList.add('show');
-                setTimeout(() => 
-                {
+                setTimeout(() => {
                     elementoTarefa.classList.remove('new-task', 'show');
                 }, 800);
             }, 10);
+        } else if (resposta.status === 401) {
+            window.location.href = "/login";
         }
-    } catch (erro) 
-    {
+    } catch (erro) {
         console.error("Erro ao adicionar tarefa:", erro);
     }
 
     entradaTarefa.value = "";
     dataTarefa.value = "";
-    document.querySelectorAll('.category-option').forEach(option => 
-    {
+    document.querySelectorAll('.category-option').forEach(option => {
         option.classList.remove('selected');
     });
     categoriaSelecionada = "";
 }
 
-function criarElementoTarefa(id, nome, data, categoria = "") 
-{
+function criarElementoTarefa(id, nome, data, categoria = "") {
     let div = document.createElement("div");
     div.classList.add("task");
     div.draggable = true;
@@ -334,34 +367,31 @@ function criarElementoTarefa(id, nome, data, categoria = "")
     return div;
 }
 
-async function excluirTarefa(botao) 
-{
+async function excluirTarefa(botao) {
     let divTarefa = botao.closest(".task");
     let idTarefa = divTarefa.dataset.id;
     divTarefa.classList.add('removing');
     
     try {
-        const resposta = await fetch(`http://127.0.0.1:5000/task-manager/${idTarefa}`, 
-        {
-            method: "DELETE"
+        const resposta = await fetch(`/task-manager/${idTarefa}`, {
+            method: "DELETE",
+            credentials: 'same-origin'
         });
 
-        if (resposta.ok) 
-        {
-            setTimeout(() =>
-            {
+        if (resposta.ok) {
+            setTimeout(() => {
                 divTarefa.remove();
             }, 300);
+        } else if (resposta.status === 401) {
+            window.location.href = "/login";
         }
-    } catch (erro) 
-    {
+    } catch (erro) {
         console.error("Erro ao excluir tarefa:", erro);
         divTarefa.classList.remove('removing');
     }
 }
 
-function arrastar(evento) 
-{
+function arrastar(evento) {
     evento.dataTransfer.setData("idTarefa", evento.target.dataset.id);
     evento.target.classList.add('dragging');
     const ghostElement = evento.target.cloneNode(true);
@@ -369,38 +399,30 @@ function arrastar(evento)
     ghostElement.style.width = evento.target.offsetWidth + 'px';
     document.body.appendChild(ghostElement);
     evento.dataTransfer.setDragImage(ghostElement, ghostElement.offsetWidth / 2, 20);  
-    setTimeout(() => 
-    {
+    setTimeout(() => {
         document.body.removeChild(ghostElement);
     }, 0);
 }
 
-function permitirSoltar(evento) 
-{
+function permitirSoltar(evento) {
     evento.preventDefault();
     const colunaAlvo = evento.target.closest(".task-column") || evento.target.closest(".task-list");
-    if (colunaAlvo) 
-    {
+    if (colunaAlvo) {
         const taskList = colunaAlvo.querySelector('.task-list');
-        if (taskList) 
-        {
+        if (taskList) {
             taskList.classList.add('drop-target');
         }
     }
 }
 
-function arrastarSaindo(evento) 
-{
-    document.querySelectorAll('.task-list').forEach(list => 
-    {
+function arrastarSaindo(evento) {
+    document.querySelectorAll('.task-list').forEach(list => {
         list.classList.remove('drop-target');
     });
 }
 
-function selecionarCategoria(elemento) 
-{
-    document.querySelectorAll('.category-option').forEach(option => 
-    {
+function selecionarCategoria(elemento) {
+    document.querySelectorAll('.category-option').forEach(option => {
         option.classList.remove('selected');
     });
     
@@ -408,17 +430,14 @@ function selecionarCategoria(elemento)
     categoriaSelecionada = elemento.dataset.category;
 }
 
-async function soltar(evento) 
-{
+async function soltar(evento) {
     evento.preventDefault();
     
-    document.querySelectorAll('.task-list').forEach(list => 
-    {
+    document.querySelectorAll('.task-list').forEach(list => {
         list.classList.remove('drop-target');
     });
     
-    document.querySelectorAll('.task').forEach(task => 
-    {
+    document.querySelectorAll('.task').forEach(task => {
         task.classList.remove('dragging');
     });
     
@@ -429,12 +448,9 @@ async function soltar(evento)
     
     let novoStatus;
     
-    if (colunaAlvo.classList.contains("task-list")) 
-    {
+    if (colunaAlvo.classList.contains("task-list")) {
         novoStatus = colunaAlvo.id.replace("-list", "");
-    } 
-    else 
-    {
+    } else {
         novoStatus = colunaAlvo.id;
     }
     
@@ -443,43 +459,40 @@ async function soltar(evento)
     tarefaArrastada.classList.add('moving');
     
     try {
-        const resposta = await fetch(`http://127.0.0.1:5000/task-manager/${idTarefa}`, {
+        const resposta = await fetch(`/task-manager/${idTarefa}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
+            credentials: 'same-origin',
             body: JSON.stringify({ status: novoStatus })
         });
 
-        if (resposta.ok) 
-        {
+        if (resposta.ok) {
             const listaAlvo = colunaAlvo.classList.contains("task-list") 
                 ? colunaAlvo 
                 : colunaAlvo.querySelector(".task-list");
             
-            if (listaAlvo) 
-            {
+            if (listaAlvo) {
                 listaAlvo.appendChild(tarefaArrastada);
                 
-                setTimeout(() => 
-                {
+                setTimeout(() => {
                     tarefaArrastada.classList.remove('moving');
                     tarefaArrastada.classList.add('arrived');
                     
-                    setTimeout(() => 
-                    {
+                    setTimeout(() => {
                         tarefaArrastada.classList.remove('arrived');
                     }, 500);
                 }, 10);
             }
+        } else if (resposta.status === 401) {
+            window.location.href = "/login";
         }
-    } catch (erro) 
-    {
+    } catch (erro) {
         console.error("Erro ao mover tarefa:", erro);
         tarefaArrastada.classList.remove('moving');
     }
 }
 
-function editarTarefa(botao) 
-{
+function editarTarefa(botao) {
     let divTarefa = botao.closest(".task");
     let idTarefa = divTarefa.dataset.id;
     let nomeTarefa = divTarefa.dataset.nome;
@@ -539,16 +552,14 @@ function selecionarCategoriaEdicao(elemento, idTarefa) {
     divTarefa.querySelector('.edit-categoria').value = elemento.dataset.category;
 }
 
-async function salvarEdicao(idTarefa) 
-{
+async function salvarEdicao(idTarefa) {
     let divTarefa = document.querySelector(`.task[data-id="${idTarefa}"]`);
     
     let novoNome = divTarefa.querySelector('.edit-nome').value.trim();
     let novaData = divTarefa.querySelector('.edit-data').value;
     let novaCategoria = divTarefa.querySelector('.edit-categoria').value;
     
-    if (novoNome === "") 
-    {
+    if (novoNome === "") {
         alert("O nome da tarefa não pode estar vazio!");
         return;
     }
@@ -556,10 +567,10 @@ async function salvarEdicao(idTarefa)
     divTarefa.classList.add('saving');
     
     try {
-        const resposta = await fetch(`http://127.0.0.1:5000/task-manager/${idTarefa}`, 
-        {
+        const resposta = await fetch(`/task-manager/${idTarefa}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
+            credentials: 'same-origin',
             body: JSON.stringify({
                 nome: novoNome,
                 data: novaData || null,
@@ -567,8 +578,7 @@ async function salvarEdicao(idTarefa)
             })
         });
         
-        if (resposta.ok) 
-        {
+        if (resposta.ok) {
             const tarefaAtualizada = await resposta.json();
             
             divTarefa.classList.remove('editing', 'saving');
@@ -592,8 +602,7 @@ async function salvarEdicao(idTarefa)
                     iconeCategoria = "";
             }
             
-            divTarefa.innerHTML = 
-            `
+            divTarefa.innerHTML = `
                 <p>${iconeCategoria ? `<span class="task-category-icon">${iconeCategoria}</span>` : ''}<strong>${tarefaAtualizada.nome}</strong></p>
                 <p>${tarefaAtualizada.data}</p>
                 <div class="task-actions">
@@ -603,36 +612,27 @@ async function salvarEdicao(idTarefa)
             `;
             
             divTarefa.classList.add('updated');
-            setTimeout(() => 
-            {
+            setTimeout(() => {
                 divTarefa.classList.remove('updated');
             }, 1000);
-        } 
-        else 
-        {
+        } else if (resposta.status === 401) {
+            window.location.href = "/login";
+        } else {
             throw new Error("Falha ao atualizar tarefa");
         }
-    } 
-    catch (erro) 
-    {
+    } catch (erro) {
         console.error("Erro ao salvar tarefa:", erro);
-        
         divTarefa.classList.remove('saving');
-        
         alert("Erro ao salvar a tarefa. Tente novamente.");
     }
 }
 
-function cancelarEdicao(idTarefa) 
-{
+function cancelarEdicao(idTarefa) {
     let divTarefa = document.querySelector(`.task[data-id="${idTarefa}"]`);
     
-    if (divTarefa.dataset.originalContent) 
-    {
+    if (divTarefa.dataset.originalContent) {
         divTarefa.innerHTML = divTarefa.dataset.originalContent;
-    } 
-    else 
-    {
+    } else {
         carregarTarefas();
     }
     
@@ -640,16 +640,13 @@ function cancelarEdicao(idTarefa)
     divTarefa.draggable = true;
 }
 
-document.addEventListener("DOMContentLoaded", function() 
-{
-    document.querySelectorAll('.task-column').forEach(column => 
-    {
+document.addEventListener("DOMContentLoaded", function() {
+    document.querySelectorAll('.task-column').forEach(column => {
         column.addEventListener('dragenter', permitirSoltar);
         column.addEventListener('dragleave', arrastarSaindo);
     });
     
-    document.querySelectorAll('.task-list').forEach(list => 
-    {
+    document.querySelectorAll('.task-list').forEach(list => {
         list.addEventListener('dragenter', permitirSoltar);
         list.addEventListener('dragleave', arrastarSaindo);
     });

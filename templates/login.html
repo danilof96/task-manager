@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Gerenciador de Tarefas</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../static/css/login.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="theme-switch-container">
+            <label class="switch">
+                <input type="checkbox" id="darkModeToggle">
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <div class="login-header">
+            <h1>Gerenciador de Tarefas</h1>
+            <p>Organize suas tarefas de forma simples e eficiente</p>
+        </div>
+
+        <div id="message" class="message"></div>
+
+        <div class="form-tabs">
+            <button class="tab-button active" onclick="switchTab('login')">Entrar</button>
+            <button class="tab-button" onclick="switchTab('register')">Cadastrar</button>
+        </div>
+
+        <div class="form-content">
+            <div id="loginForm" class="form-panel active">
+                <form onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label for="loginEmail">Email</label>
+                        <input type="email" id="loginEmail" placeholder="seu@email.com" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="loginPassword">Senha</label>
+                        <div class="password-toggle">
+                            <input type="password" id="loginPassword" placeholder="••••••••" required>
+                            <button type="button" class="password-toggle-btn" onclick="togglePassword('loginPassword')">
+                                👁️
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="remember-forgot">
+                        <div class="remember-me">
+                            <input type="checkbox" id="rememberMe">
+                            <label for="rememberMe">Lembrar de mim</label>
+                        </div>
+                        <a href="#" class="forgot-password">Esqueceu a senha?</a>
+                    </div>
+
+                    <button type="submit" class="submit-btn">
+                        <span>Entrar</span>
+                        <div class="loading"></div>
+                    </button>
+                </form>
+            </div>
+
+            <div id="registerForm" class="form-panel">
+                <form onsubmit="handleRegister(event)">
+                    <div class="form-group">
+                        <label for="registerName">Nome completo</label>
+                        <input type="text" id="registerName" placeholder="João Silva" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="registerEmail">Email</label>
+                        <input type="email" id="registerEmail" placeholder="seu@email.com" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="registerPassword">Senha</label>
+                        <div class="password-toggle">
+                            <input type="password" id="registerPassword" placeholder="••••••••" required minlength="6">
+                            <button type="button" class="password-toggle-btn" onclick="togglePassword('registerPassword')">
+                                👁️
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirmar senha</label>
+                        <div class="password-toggle">
+                            <input type="password" id="confirmPassword" placeholder="••••••••" required minlength="6">
+                            <button type="button" class="password-toggle-btn" onclick="togglePassword('confirmPassword')">
+                                👁️
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="submit-btn">
+                        <span>Cadastrar</span>
+                        <div class="loading"></div>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const darkModeToggle = document.getElementById("darkModeToggle");
+            
+            const savedTheme = localStorage.getItem("theme");
+            if (savedTheme === "dark") {
+                document.body.classList.add("dark-mode");
+                darkModeToggle.checked = true;
+            }
+            
+            darkModeToggle.addEventListener("change", function() {
+                document.body.classList.toggle("dark-mode");
+                const theme = document.body.classList.contains("dark-mode") ? "dark" : "light";
+                localStorage.setItem("theme", theme);
+            });
+        });
+
+        function switchTab(tab) {
+            const loginForm = document.getElementById("loginForm");
+            const registerForm = document.getElementById("registerForm");
+            const tabButtons = document.querySelectorAll(".tab-button");
+            
+            tabButtons.forEach(button => button.classList.remove("active"));
+            
+            if (tab === "login") {
+                loginForm.classList.add("active");
+                registerForm.classList.remove("active");
+                tabButtons[0].classList.add("active");
+            } else {
+                loginForm.classList.remove("active");
+                registerForm.classList.add("active");
+                tabButtons[1].classList.add("active");
+            }
+            
+            hideMessage();
+        }
+
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const button = input.nextElementSibling;
+            
+            if (input.type === "password") {
+                input.type = "text";
+                button.textContent = "🙈";
+            } else {
+                input.type = "password";
+                button.textContent = "👁️";
+            }
+        }
+
+        function showMessage(text, type) {
+            const messageEl = document.getElementById("message");
+            messageEl.textContent = text;
+            messageEl.className = `message ${type}`;
+            messageEl.style.display = "block";
+            
+            setTimeout(() => {
+                hideMessage();
+            }, 5000);
+        }
+
+        function hideMessage() {
+            const messageEl = document.getElementById("message");
+            messageEl.style.display = "none";
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById("loginEmail").value;
+            const password = document.getElementById("loginPassword").value;
+            const submitBtn = event.target.querySelector(".submit-btn");
+            
+            submitBtn.classList.add("loading", "clicked");
+            
+            try {
+                const response = await fetch("/api/login", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                submitBtn.classList.remove("loading", "clicked");
+                
+                if (response.ok && data.sucesso) {
+                    showMessage("Login realizado com sucesso! Redirecionando...", "success");
+                    setTimeout(() => {
+                        window.location.href = "/dashboard";
+                    }, 1000);
+                } else {
+                    showMessage(data.erro || "Erro ao fazer login", "error");
+                }
+                
+            } catch (error) {
+                console.error("Erro ao fazer login:", error);
+                submitBtn.classList.remove("loading", "clicked");
+                showMessage("Erro de conexão. Tente novamente.", "error");
+            }
+        }
+
+        async function handleRegister(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById("registerName").value;
+            const email = document.getElementById("registerEmail").value;
+            const password = document.getElementById("registerPassword").value;
+            const confirmPassword = document.getElementById("confirmPassword").value;
+            const submitBtn = event.target.querySelector(".submit-btn");
+            
+            if (password !== confirmPassword) {
+                showMessage("As senhas não coincidem!", "error");
+                return;
+            }
+            
+            submitBtn.classList.add("loading", "clicked");
+            
+            try {
+                const response = await fetch("/api/register", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        email: email,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                submitBtn.classList.remove("loading", "clicked");
+                
+                if (response.ok && data.sucesso) {
+                    showMessage("Cadastro realizado com sucesso! Você já pode fazer login.", "success");
+                    
+                    setTimeout(() => {
+                        switchTab("login");
+                        document.getElementById("loginEmail").value = email;
+                    }, 2000);
+                } else {
+                    showMessage(data.erro || "Erro ao cadastrar usuário", "error");
+                }
+                
+            } catch (error) {
+                console.error("Erro ao cadastrar:", error);
+                submitBtn.classList.remove("loading", "clicked");
+                showMessage("Erro de conexão. Tente novamente.", "error");
+            }
+        }
+
+        document.querySelectorAll(".submit-btn").forEach(button => {
+            button.addEventListener("click", function(e) {
+                this.classList.add("clicked");
+                setTimeout(() => {
+                    this.classList.remove("clicked");
+                }, 600);
+            });
+        });
+    </script>
+</body>
+</html>
